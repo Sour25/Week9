@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useState, useContext } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import API from "../../api";
+import API, { setAuthToken } from "../../api";
+import { setToken } from "../../utils/auth";
+import { jwtDecode } from "jwt-decode";
+import { AuthContext } from "../../context/AuthContext";
 
 export default function Register() {
   const [name, setName] = useState("");
@@ -8,10 +11,39 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
   const navigate = useNavigate();
+  const { setAuth } = useContext(AuthContext);
 
   const handleSubmit = async (e) => {
-    // implement your registration logic here
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      // 1. Register
+      await API.post("/auth/register", { name, email, password });
+
+      // 2. Login right after registering
+      const res = await API.post("/auth/login", { email, password });
+      const token = res.data.token;
+
+      // 3. Save token
+      setToken(token);
+      setAuthToken(token);
+
+      // 4. Decode & set user context
+      const decoded = jwtDecode(token);
+      setAuth(decoded);
+
+      // 5. Redirect
+      navigate("/dashboard");
+    } catch (err) {
+      const msg = err.response?.data?.message || "Registration failed";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
